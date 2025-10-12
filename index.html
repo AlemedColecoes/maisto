@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Coleção Maisto</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+            margin: 0;
+            background: #f8fafc;
+            color: #111827;
+        }
+        button, label[role="button"] {
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-primary:hover {
+            background-color: #7c3aed;
+        }
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        .card {
+            transition: transform 0.1s;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .collected-card {
+            border: 4px solid #10b981; /* Verde esmeralda para indicar colecionado */
+        }
+        .checkbox-label-disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+    </style>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJpY29ucyI6IFt7ICJzZWN1cmVfY29udGV4dGljc19hbGxvd2VkIjogdHJ1ZSwgInNyYyI6ICJodHRwczovL3BsYWNlaG9sZC5jby8xOTJ4MTkyLzIwMTAxMD90ZXh0PW1haXN0byIsICJ0eXBlIjogImltYWdlL3BuZyIsICJzaXplcyI6ICIxOTJ4MTkyIiB9LCB7ICJzZWN1cmVfY29udGV4dGljc19hbGxvd2VkIjogdHJ1ZSwgInNyYyI6ICJodHRwczovL3BsYWNlaG9sZC5jby81MTJ4NTEyLzIwMTAxMD90ZXh0PW1haXN0byIsICJ0eXBlIjogImltYWdlL3BuZyIsICJzaXplcyI6ICI1MTJ4NTEyIiB9XSwgIm5hbWUiOiAiQ29sZcOnw6NvIE1haXN0byIsICJzaG9ydF9uYW1lIjogIkNvbGVjYW8gTWFpc3RvIn0=" />
+    <meta name="theme-color" content="#9333ea" />
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    // --- Configurações Iniciais de Dados ---
+    const initialMiniaturesByBrand = {
+        BMW: [
+            { id: 1, name: "BMW M4", image: "img/bmw/01.jpg" },
+            { id: 2, name: "BMW i8", image: "img/bmw/02.jpg" },
+        ],
+        Audi: [
+            { id: 1, name: "Audi R8", image: "img/audi/01.jpg" },
+            { id: 2, name: "Audi RS6 Avant", image: "img/audi/02.jpg" },
+        ],
+        Porsche: [
+            { id: 1, name: "Porsche 911 GT3", image: "img/porsche/01.jpg" },
+        ],
+        Ford: [
+             { id: 1, name: "Mustang GT", image: "img/ford/01.jpg" },
+             { id: 2, name: "Ford F-150 Raptor", image: "img/ford/02.jpg" },
+        ],
+        Chevrolet: [
+            { id: 1, name: "Camaro SS", image: "img/chevrolet/01.jpg" },
+            { id: 2, name: "Corvette C8", image: "img/chevrolet/02.jpg" },
+        ],
+        Lamborghini: [
+            { id: 1, name: "Aventador", image: "img/lamborghini/01.jpg" },
+        ],
+        Honda: [], Buick: [], Mercedez: [], Jeep: [], Hummer: [], Dodge: [],
+        VolksWagen: [], Trucks: [], "Serviço": [], Trailer: [], Fantasia: [],
+        Cadillac: [], Chrysler: [], Jaguar: [], Lexus: [], Toyota: [],
+        Plymouth: [], Pontiac: [], outros: [],
+    };
+    
+    const brandsList = [
+        "BMW", "Audi", "Porsche", "Ford", "Chevrolet", "Lamborghini", "Honda", "Buick",
+        "Mercedez", "Jeep", "Hummer", "Dodge", "VolksWagen", "Trucks", "Serviço",
+        "Trailer", "Fantasia", "Cadillac", "Chrysler", "Jaguar", "Lexus",
+        "Toyota", "Plymouth", "Pontiac", "outros"
+    ];
+    
+    // --- Gerenciamento de Dados Locais (LocalStorage) ---
+    const LOCAL_STORAGE_KEY_COLLECTION = "maistoCollectionData";
+    const LOCAL_STORAGE_KEY_LOCKED = "maistoLockedData";
+
+    const getInitialCollection = () => {
+        try {
+            const storedData = localStorage.getItem(LOCAL_STORAGE_KEY_COLLECTION);
+            return storedData ? JSON.parse(storedData) : {};
+        } catch (e) {
+            console.error("Erro ao carregar coleção do localStorage:", e);
+            return {};
+        }
+    };
+    
+    const getInitialLockedItems = () => {
+        try {
+            const storedData = localStorage.getItem(LOCAL_STORAGE_KEY_LOCKED);
+            return storedData ? JSON.parse(storedData) : {};
+        } catch (e) {
+            console.error("Erro ao carregar itens bloqueados do localStorage:", e);
+            return {};
+        }
+    };
+
+
+    // --- Componente Principal da Aplicação ---
+    function App() {
+        const [selectedBrand, setSelectedBrand] = useState(null);
+        const [miniaturesByBrand] = useState(initialMiniaturesByBrand);
+        const [collection, setCollection] = useState(getInitialCollection);
+        const [lockedItems, setLockedItems] = useState(getInitialLockedItems);
+
+        // --- Efeitos (UseEffect) ---
+        useEffect(() => {
+            localStorage.setItem(LOCAL_STORAGE_KEY_COLLECTION, JSON.stringify(collection));
+        }, [collection]);
+        
+        useEffect(() => {
+            localStorage.setItem(LOCAL_STORAGE_KEY_LOCKED, JSON.stringify(lockedItems));
+        }, [lockedItems]);
+
+        // --- Funções Principais ---
+
+        const toggleMiniature = useCallback((brand, id) => {
+            setCollection(prevCollection => {
+                const updated = { ...prevCollection };
+                const brandData = updated[brand] || {};
+                brandData[id] = !brandData[id];
+
+                if (!brandData[id]) {
+                    delete brandData[id];
+                }
+
+                updated[brand] = brandData;
+                if (Object.keys(updated[brand] || {}).length === 0) delete updated[brand];
+
+                return updated;
+            });
+        }, []);
+        
+        const toggleLock = useCallback((brand, id) => {
+            setLockedItems(prevLocked => {
+                const updated = { ...prevLocked };
+                const brandData = updated[brand] || {};
+                brandData[id] = !brandData[id];
+
+                if (!brandData[id]) {
+                    delete brandData[id];
+                }
+
+                updated[brand] = brandData;
+                if (Object.keys(updated[brand] || {}).length === 0) delete updated[brand];
+
+                return updated;
+            });
+        }, []);
+
+        const handleImageClick = (imageUrl) => {
+            if (!imageUrl || imageUrl.includes("ERRO+IMG") || imageUrl.startsWith("https://placehold.co/")) {
+                alert("Não é possível ampliar: a imagem está em falta ou é um placeholder genérico.");
+                return;
+            }
+
+            const newWindow = window.open('', '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                alert("O seu navegador bloqueou a abertura da imagem ampliada (pop-up). Por favor, desabilite o bloqueador de pop-ups.");
+                return;
+            }
+
+            newWindow.document.write(`
+                <html>
+                <head>
+                    <title>Ampliação de Imagem</title>
+                    <style>
+                        body { margin: 0; background: #1f2937; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+                        img { max-width: 98vw; max-height: 98vh; object-fit: contain; cursor: zoom-out; }
+                    </style>
+                </head>
+                <body>
+                    <img src="${imageUrl}" onclick="window.close()" title="Clique para fechar"/>
+                </body>
+                </html>
+            `);
+            newWindow.document.close();
+        };
+
+        // --- Componentes de Layout ---
+        const BackgroundWrapper = ({ children }) => (
+            <div className="min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4"
+                style={{ backgroundImage: "url('img/alemed.png')", backgroundAttachment: "fixed" }}>
+                <div className="bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]">
+                    {children}
+                </div>
+            </div>
+        );
+
+        // --- Renderização Condicional ---
+        if (!selectedBrand) {
+            return (
+                <BackgroundWrapper>
+                    <h1 className="text-4xl font-extrabold text-center mb-4 text-purple-400">
+                        Coleção Maisto
+                    </h1>
+                    <p className="mb-8 text-center text-gray-300">
+                        Selecione a marca para visualizar sua coleção. Seus dados são salvos no seu dispositivo e funcionam offline.
+                    </p>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-5xl">
+                        {brandsList.map((brand) => (
+                            <div key={brand} 
+                                 onClick={() => setSelectedBrand({ brand })}
+                                 className="bg-white/10 shadow-lg rounded-xl p-3 flex flex-col items-center justify-center border border-purple-500/50 card h-24">
+                                <h3 className="text-xl font-bold text-purple-300 text-center">{brand}</h3>
+                            </div>
+                        ))}
+                    </div>
+                </BackgroundWrapper>
+            );
+        }
+
+        const { brand } = selectedBrand;
+        const miniatures = miniaturesByBrand[brand] || [];
+        const currentCollection = collection[brand] || {};
+        const currentLocked = lockedItems[brand] || {};
+
+        return (
+            <BackgroundWrapper>
+                <div className="w-full flex justify-start items-center mb-6">
+                    <button onClick={() => setSelectedBrand(null)} className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:bg-purple-700 active:scale-95 transition btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Voltar
+                    </button>
+                </div>
+
+                <h2 className="text-4xl font-extrabold text-purple-400 mb-6 text-center">
+                    Coleção Maisto - {brand}
+                </h2>
+
+                {miniatures.length === 0 ? (
+                    <p className="text-gray-200">Nenhuma miniatura cadastrada para esta marca ainda.</p>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
+                        {miniatures.map((mini) => {
+                            const isCollected = currentCollection[mini.id];
+                            const isLocked = currentLocked[mini.id];
+                            return (
+                                <div key={mini.id} className={`bg-white shadow-xl rounded-xl p-3 flex flex-col items-center justify-between transform transition duration-300 ease-in-out ${isCollected ? 'collected-card' : 'border border-gray-200'}`}>
+                                    <div onClick={() => handleImageClick(mini.image)} className={`w-full h-[120px] bg-gray-200 rounded-lg mb-2 flex items-center justify-center overflow-hidden transition-opacity border-2 border-transparent hover:border-purple-500 cursor-zoom-in`} title="Clique para ampliar a imagem">
+                                        {mini.image ? (
+                                            <img src={mini.image} alt={mini.name} className="object-contain w-full h-full rounded-lg" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/225x120/f3f4f6/333?text=ERRO+IMG"; }}/>
+                                        ) : (
+                                            <span className="text-gray-400 text-sm font-medium">Foto</span>
+                                        )}
+                                    </div>
+                                    
+                                    <p className="text-gray-800 text-xs sm:text-sm font-semibold text-center mt-1 mb-2">
+                                        {mini.name || "Nome da Miniatura"}
+                                    </p>
+
+                                    <div className="flex w-full items-center justify-between space-x-2 mt-2">
+                                        <label 
+                                            onClick={!isLocked ? () => toggleMiniature(brand, mini.id) : undefined} 
+                                            className={`flex-grow flex items-center justify-center gap-2 text-gray-800 text-sm font-medium p-2 rounded-lg ${isLocked ? 'checkbox-label-disabled bg-gray-200' : 'cursor-pointer bg-gray-100 hover:bg-gray-200'}`}
+                                            role={!isLocked ? "button" : "label"}>
+                                            <input type="checkbox" checked={isCollected || false} disabled={isLocked} onChange={() => {}} className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"/>
+                                            Tenho
+                                        </label>
+                                        <button onClick={() => toggleLock(brand, mini.id)} className={`p-2 rounded-lg ${isLocked ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`} title={isLocked ? "Desbloquear item" : "Bloquear item"}>
+                                            {isLocked ? (
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                  <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+                                                </svg>
+                                            ) : (
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                  <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2V7a5 5 0 00-5-5zm0 9a3 3 0 100-6 3 3 0 000 6z" />
+                                                </svg>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </BackgroundWrapper>
+        );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+    // --- Service Worker (Para funcionalidade Offline/PWA) ---
+    const CACHE_NAME = "colecao-maisto-cache-v1";
+    const OFFLINE_URLS = ["/"];
+    
+    if ("serviceWorker" in navigator) {
+        const swCode = `
+            const CACHE_NAME = "${CACHE_NAME}";
+            const OFFLINE_URLS = ["/"];
+
+            self.addEventListener("install", (event) => {
+                event.waitUntil(
+                    caches.open(CACHE_NAME).then((cache) => {
+                        return cache.addAll(OFFLINE_URLS);
+                    })
+                );
+                self.skipWaiting();
+            });
+
+            self.addEventListener("activate", (event) => {
+                event.waitUntil(
+                    caches.keys().then((keys) =>
+                        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+                    )
+                );
+                self.clients.claim();
+            });
+
+            self.addEventListener("fetch", (event) => {
+                if (event.request.method !== "GET" || event.request.url.startsWith('data:')) return;
+                
+                event.respondWith(
+                    caches.match(event.request).then((cached) => {
+                        const fetchPromise = fetch(event.request)
+                            .then((res) => {
+                                const copy = res.clone();
+                                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+                                return res;
+                            })
+                            .catch(() => {
+                                return cached;
+                            });
+
+                        return cached || fetchPromise;
+                    })
+                );
+            });
+        `;
+        
+        const swBlob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+
+        navigator.serviceWorker.register(swUrl, { scope: '/' })
+            .then(() => console.log("✅ Service Worker registrado com sucesso (PWA)."))
+            .catch(err => console.error("❌ Erro no registro do SW:", err));
+    }
+</script>
+</body>
+</html>
