@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coleção Maisto</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+      margin: 0;
+      background: #f8fafc;
+      color: #111827;
+    }
+    .card:hover {
+      transform: scale(1.03);
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    }
+    .collected-card {
+      border: 4px solid #10b981;
+    }
+  </style>
+
+<script type="module">
+  // Importa as funções necessárias do Firebase SDK
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"; // Adicionado signOut
+
+  // Sua configuração do Firebase (COLE AQUI A SUA CONFIGURAÇÃO REAL)
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "maisto-fresh-metal.firebaseapp.com",
+    projectId: "maisto-fresh-metal",
+    storageBucket: "maisto-fresh-metal.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID",
+    measurementId: "YOUR_MEASUREMENT_ID"
+  };
+
+  // Inicializa o Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app); // Inicializa o Firebase Authentication
+
+  // Torna os objetos e funções do Firebase acessíveis globalmente para o script React
+  window.firebaseApp = app;
+  window.firebaseDb = db;
+  window.firebaseAuth = auth;
+  window.firebaseFirestore = { collection, getDocs, doc, setDoc, onSnapshot };
+  window.firebaseAuthFunctions = { signInAnonymously, onAuthStateChanged, signOut }; // Exporta funções Auth
+</script>
+
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useMemo } = React;
+    const { collection, getDocs, doc, setDoc, onSnapshot } = window.firebaseFirestore;
+    const { signInAnonymously, onAuthStateChanged, signOut } = window.firebaseAuthFunctions;
+    const db = window.firebaseDb;
+    const auth = window.firebaseAuth;
+
+    const initialMiniaturesByBrand = {
+      "Hot Wheels": [
+        { id: 1, name: "Bone Shaker", image: "https://via.placeholder.com/150" },
+        { id: 2, name: "Twin Mill", image: "https://via.placeholder.com/150" }
+      ],
+      "Matchbox": [
+        { id: 1, name: "Ford Explorer", image: "https://via.placeholder.com/150" }
+      ]
+    };
+    const brandsList = Object.keys(initialMiniaturesByBrand).sort();
+
+    const uploadInitialMiniaturesToFirestore = async () => {
+      if (Object.keys(initialMiniaturesByBrand).length === 0) {
+          console.warn("initialMiniaturesByBrand está vazio. Não há dados para subir.");
+          return;
+      }
+
+      console.log("Iniciando upload de dados iniciais das miniaturas para o Firestore...");
+      for (const brandName in initialMiniaturesByBrand) {
+        const brandRef = doc(db, "miniatures", brandName);
+        try {
+          await setDoc(brandRef, { items: initialMiniaturesByBrand[brandName] });
+          console.log(`Dados da marca '${brandName}' enviados com sucesso.`);
+        } catch (error) {
+          console.error(`Erro ao enviar dados da marca '${brandName}':`, error);
+        }
+      }
+      console.log("Upload inicial de miniaturas concluído!");
+    };
+
+    function App() {
+      const [view, setView] = useState('home');
+      const [selectedBrand, setSelectedBrand] = useState(null);
+      const [miniaturesByBrand, setMiniaturesByBrand] = useState(initialMiniaturesByBrand);
+      const [collectionData, setCollectionData] = useState({});
+      const [lockedItems, setLockedItems] = useState({});
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filter, setFilter] = useState('all');
+      const [currentUser, setCurrentUser] = useState(null);
+
+      useEffect(() => {
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+          if (user) {
+            setCurrentUser(user);
+          } else {
+            signInAnonymously(auth)
+              .then((userCredential) => {
+                setCurrentUser(userCredential.user);
+              })
+              .catch((error) => {
+                console.error("Erro ao logar anonimamente:", error);
+              });
+          }
+        });
+        return () => unsubscribeAuth();
+      }, [auth]);
+
+      useEffect(() => {
+        if (!currentUser) return;
+
+        const fetchAllMiniaturesFromFirestore = async () => {
+          const querySnapshot = await getDocs(collection(db, "miniatures"));
+          if (!querySnapshot.empty) {
+            const allMinis = {};
+            querySnapshot.forEach((docSnap) => {
+              allMinis[docSnap.id] = docSnap.data().items;
+            });
+            setMiniaturesByBrand(allMinis);
+          }
+        };
+
+        const userDocRef = doc(db, "users", currentUser.uid);
+        const unsubscribeUserCollection = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            setCollectionData(userData.collection || {});
+            setLockedItems(userData.lockedItems || {});
+          } else {
+            setCollectionData({});
+            setLockedItems({});
+            setDoc(userDocRef, { collection: {}, lockedItems: {} }, { merge: true })
+              .catch(error => console.error("Erro ao criar documento de usuário:", error));
+          }
+        });
+
+        fetchAllMiniaturesFromFirestore();
+        return () => unsubscribeUserCollection();
+      }, [db, currentUser]);
+
+      useEffect(() => {
+        const handlePopState = () => {
+          if (view === 'brand' || view === 'all') {
+            setView('home');
+            setSelectedBrand(null);
+          }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+      }, [view]);
+
+      const navigate = (newView, brand = null) => {
+        history.pushState({ view: newView, brand }, '', `#${newView}${brand ? `/${brand}`: ''}`);
+        setView(newView);
+        setSelectedBrand(brand ? { brand } : null);
+      };
+
+      const handleGoBack = () => history.back();
+
+      const toggleMiniature = useCallback(async (brand, id) => {
+        if (!currentUser) return;
+
+        const userDocRef = doc(db, "users", currentUser.uid);
+        const currentCollection = { ...collectionData };
+        const brandData = { ...(currentCollection[brand] || {}) };
+        
+        brandData[id] = !brandData[id];
+        if (!brandData[id]) delete brandData[id];
+        
+        if (Object.keys(brandData).length === 0) {
+            delete currentCollection[brand];
+        } else {
+            currentCollection[brand] = brandData;
+        }
+
+        await setDoc(userDocRef, { collection: currentCollection }, { merge: true })
+          .catch(error => console.error("Erro ao atualizar coleção no Firestore:", error));
+      }, [db, currentUser, collectionData]);
+
+      const toggleLockAllBrands = useCallback(async () => {
+          if (!currentUser) return;
+
+          const userDocRef = doc(db, "users", currentUser.uid);
+          let newLockedItems = {};
+
+          if (areAllLocked) {
+              newLockedItems = {};
+          } else {
+              for (const brand in miniaturesByBrand) {
+                  const brandLocks = {};
+                  miniaturesByBrand[brand].forEach(mini => { brandLocks[mini.id] = true; });
+                  newLockedItems[brand] = brandLocks;
+              }
+          }
+
+          await setDoc(userDocRef, { lockedItems: newLockedItems }, { merge: true })
+              .catch(error => console.error("Erro ao atualizar bloqueios no Firestore:", error));
+      }, [miniaturesByBrand, areAllLocked, db, currentUser]);
+
+      const totalMiniaturesCount = useMemo(() => Object.values(miniaturesByBrand).reduce((acc, current) => acc + current.length, 0), [miniaturesByBrand]);
+      const totalCollectedCount = useMemo(() => Object.values(collectionData).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [collectionData]);
+      const totalLockedCount = useMemo(() => Object.values(lockedItems).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [lockedItems]);
+      const areAllLocked = totalMiniaturesCount > 0 && totalMiniaturesCount === totalLockedCount;
+
+      const allMiniaturesList = useMemo(() => {
+          return Object.entries(miniaturesByBrand).flatMap(([brand, minis]) =>
+              minis.map(mini => ({ ...mini, brand }))
+          );
+      }, [miniaturesByBrand]);
+
+      const filteredMiniatures = useMemo(() => {
+          return allMiniaturesList
+              .filter(mini => {
+                  const isCollected = collectionData[mini.brand]?.[mini.id];
+                  return filter === 'all' || (filter === 'collected' && isCollected);
+              })
+              .filter(mini => mini.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      }, [allMiniaturesList, collectionData, filter, searchTerm]);
+
+      const handleLogout = async () => {
+        try {
+          await signOut(auth);
+        } catch (error) {
+          console.error("Erro ao fazer logout:", error);
+        }
+      };
+
+      const exportToPDF = async () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(18);
+        
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const titleHeight = 22; 
+        doc.text("Relatório da Coleção Maisto", pageWidth / 2, titleHeight, { align: 'center' });
+
+        doc.setFontSize(7);
+        doc.setTextColor(100);
+
+        const loadImageAsBase66 = (url) => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0);
+              resolve(canvas.toDataURL("image/jpeg"));
+            };
+            img.onerror = (e) => {
+              console.error("Falha ao carregar imagem:", url, e);
+              resolve(null);
+            };
+            img.src = url;
+          });
+        };
+
+        let y = 30; 
+        const pageHeight = 280; 
+        const columns = 5;  
+        const margin = 5;  
+        const totalWidth = doc.internal.pageSize.getWidth() - 2 * margin;  
+        const columnWidth = totalWidth / columns;
+        const imageWidth = columnWidth - 2;  
+
+        const imageHeight = 12; 
+        const textSpace = 8; 
+        const spacing = 10; 
+        const itemHeight = imageHeight + textSpace + spacing;
+        
+        for (let i = 0; i < filteredMiniatures.length; i += columns) {
+          if (y + itemHeight > pageHeight - margin) {  
+            doc.addPage();
+            y = margin; 
+          }
+
+          for (let j = 0; j < columns; j++) {
+            const index = i + j;
+            if (index >= filteredMiniatures.length) break;
+
+            const mini = filteredMiniatures[index];
+            const x = margin + j * columnWidth + 1;  
+
+            try {
+              const imgData = await loadImageAsBase66(mini.image);
+              if (imgData) {
+                doc.addImage(imgData, 'JPEG', x, y, imageWidth, imageHeight);
+              } else {
+                doc.setFillColor(230, 230, 230);
+                doc.rect(x, y, imageWidth, imageHeight, 'F');
+                doc.setTextColor(150);
+                doc.text("No Img", x + imageWidth / 2, y + imageHeight / 2, { align: 'center', baseline: 'middle' });
+                doc.setTextColor(100);
+              }
+            } catch (error) {
+              doc.setFillColor(230, 230, 230);
+              doc.rect(x, y, imageWidth, imageHeight, 'F');
+              doc.setTextColor(150);
+              doc.text("Erro IMG", x + imageWidth / 2, y + imageHeight / 2, { align: 'center', baseline: 'middle' });
+              doc.setTextColor(100);
+            }
+
+            const status = collectionData[mini.brand]?.[mini.id] ? "Tenho: SIM" : "Tenho: NAO";
+            const line1 = mini.name;
+            
+            const textLines = doc.splitTextToSize(line1, imageWidth);
+            
+            doc.text(textLines, x, y + imageHeight + 1);
+            doc.text(status, x, y + imageHeight + 1 + (textLines.length * 3.2));  
+          }
+          
+          y += itemHeight;
+        }
+
+        doc.save("colecao_maisto.pdf");
+      };
+
+      const BackgroundWrapper = ({ children }) => (
+        <div className="min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4"
+          style={{ backgroundImage: "url('img/alemed.png')", backgroundAttachment: "fixed" }}>
+          <div className="relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]">
+            {children}
+          </div>
+        </div>
+      );
+
+      if (view === 'all') {
+        return (
+          <BackgroundWrapper>
+            <div className="w-full flex justify-between items-center mb-4">
+              <button onClick={handleGoBack} className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:bg-purple-700 active:scale-95 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                Voltar
+              </button>
+              <h1 className="text-3xl font-extrabold text-purple-400">Todas as Miniaturas</h1>
+              {currentUser && !currentUser.isAnonymous && (
+                <button onClick={handleLogout} className="px-4 py-2 text-sm bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 active:scale-95 transition">
+                  Logout
+                </button>
+              )}
+              {!currentUser && (
+                <div/>
+              )}
+            </div>
+
+            <div className="w-full flex flex-col md:flex-row gap-4 mb-6">
+              <input type="text" placeholder="Buscar por nome..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-grow p-2 rounded-lg bg-white/20 border border-purple-400/50 focus:ring-purple-500 focus:border-purple-500"/>
+              <div className="flex gap-2">
+                <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-lg font-semibold ${filter === 'all' ? 'bg-purple-600' : 'bg-white/10'}`}>Todas</button>
+                <button onClick={() => setFilter('collected')} className={`px-4 py-2 rounded-lg font-semibold ${filter === 'collected' ? 'bg-purple-600' : 'bg-white/10'}`}>Minha Coleção</button>
+              </div>
+              <button onClick={exportToPDF} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold">Exportar para PDF</button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
+              {filteredMiniatures.map(mini => {
+                const isCollected = collectionData[mini.brand]?.[mini.id];
+                const isLocked = lockedItems[mini.brand]?.[mini.id];
+                return (
+                  <div key={`${mini.brand}-${mini.id}`} className={"bg-white shadow-xl rounded-xl p-3 flex flex-col items-center justify-between " + (isCollected ? "collected-card" : "border border-gray-200")}>
+                    <div className="w-full h-[120px] bg-gray-200 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
+                      <img src={mini.image} alt={mini.name} className="object-contain w-full h-full rounded-lg" onError={e => e.target.src = 'https://placehold.co/225x120/f3f4f6/333?text=ERRO+IMG'} />
+                    </div>
+                    <p className="text-gray-800 text-xs sm:text-sm font-semibold text-center mt-1 mb-2">{mini.name}</p>
+                    <p className="text-gray-500 text-xs font-medium mb-2">{mini.brand}</p>
+                    <label onClick={!isLocked ? () => toggleMiniature(mini.brand, mini.id) : undefined} className={"flex w-full justify-center gap-2 text-gray-800 text-sm font-medium p-2 rounded-lg " + (isLocked ? "bg-gray-200 cursor-not-allowed opacity-70" : "bg-gray-100 hover:bg-gray-200 cursor-pointer")}>
+                      <input type="checkbox" checked={!!isCollected} disabled={isLocked} readOnly className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" /> Tenho
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </BackgroundWrapper>
+        );
+      }
+
+      if (view === 'brand') {
+        const { brand } = selectedBrand;
+        const miniatures = miniaturesByBrand[brand] || [];
+        const currentCollection = collectionData[brand] || {};
+        const currentLocked = lockedItems[brand] || {};
+        return (
+          <BackgroundWrapper>
+            <div className="w-full flex justify-between items-center mb-6">
+              <button onClick={handleGoBack} className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:bg-purple-700 active:scale-95 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                Voltar
+              </button>
+              <button onClick={toggleLockAllBrands} className={(areAllLocked ? "bg-red-600 hover:bg-red-700" : "bg-gray-200 text-gray-800 hover:bg-gray-300") + " px-4 py-2 text-sm font-semibold rounded-lg shadow-lg transition"}>
+                {areAllLocked ? 'Desbloquear Tudo' : 'Bloquear Tudo'}
+              </button>
+            </div>
+            <h2 className="text-4xl font-extrabold text-purple-400 mb-6 text-center">Coleção Maisto - {brand}</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
+              {miniatures.map((mini) => {
+                const isCollected = currentCollection[mini.id];
+                const isLocked = currentLocked[mini.id];
+                return (
+                  <div key={mini.id} className={"bg-white shadow-xl rounded-xl p-3 flex flex-col items-center justify-between " + (isCollected ? "collected-card" : "border border-gray-200")}>
+                    <div className="w-full h-[120px] bg-gray-200 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
+                      <img src={mini.image} alt={mini.name} className="object-contain w-full h-full rounded-lg" onError={e => e.target.src = 'https://placehold.co/225x120/f3f4f6/333?text=ERRO+IMG'} />
+                    </div>
+                    <p className="text-gray-800 text-xs sm:text-sm font-semibold text-center mt-1 mb-2">{mini.name}</p>
+                    <label onClick={!isLocked ? () => toggleMiniature(brand, mini.id) : undefined} className={"flex w-full justify-center gap-2 text-gray-800 text-sm font-medium p-2 rounded-lg " + (isLocked ? "bg-gray-200 cursor-not-allowed opacity-70" : "bg-gray-100 hover:bg-gray-200 cursor-pointer")}>
+                      <input type="checkbox" checked={!!isCollected} disabled={isLocked} readOnly className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500" /> Tenho
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </BackgroundWrapper>
+        );
+      }
+
+      return (
+        <BackgroundWrapper>
+          <div className="w-full relative text-center mb-4">
+            <h1 className="text-5xl font-extrabold text-purple-300">Coleção Maisto</h1>
+            {currentUser && (
+              <div className="flex flex-col items-end absolute top-0 right-0">
+                <h2 className="font-bold text-lg text-purple-300">Minha Coleção</h2>
+                <p className="text-2xl font-mono">{totalCollectedCount} / {totalMiniaturesCount}</p>
+                {!currentUser.isAnonymous && (
+                  <button onClick={handleLogout} className="mt-2 px-3 py-1 text-xs bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 active:scale-95 transition">
+                    Logout
+                  </button>
+                )}
+              </div>
+            )}
+            
+          </div>
+          <p className="text-2xl text-center text-gray-400">Selecione a marca para visualizar sua coleção.</p>
+          
+          <div className="w-full h-0 mb-8 max-w-5xl"></div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-5xl">
+            {brandsList.map((brand) => {
+              const totalInBrand = miniaturesByBrand[brand]?.length || 0;
+              const collectedInBrand = Object.keys(collectionData[brand] || {}).length;
+              return (
+                <div key={brand} onClick={() => navigate('brand', brand)} className="bg-white/10 shadow-lg rounded-xl p-3 flex flex-col items-center justify-center border border-purple-500/50 card cursor-pointer">
+                  <h3 className="text-xl font-bold text-purple-300 text-center">{brand}</h3>
+                  <p className="text-sm font-medium text-gray-300 mt-2">{collectedInBrand} / {totalInBrand}</p>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="w-full h-0 mb-8 max-w-5xl"></div>
+
+          <div className="absolute bottom-6 right-6">
+              <button onClick={() => navigate('all')} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold shadow-lg">
+                  Ver Todas as Miniaturas
+              </button>
+          </div>
+        </BackgroundWrapper>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
