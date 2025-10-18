@@ -19,17 +19,8 @@ const {
 } = window.firebaseAuthFunctions;
 const db = window.firebaseDb;
 const auth = window.firebaseAuth;
-const BackgroundWrapper = ({
-  children
-}) => /*#__PURE__*/React.createElement("div", {
-  className: "min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4",
-  style: {
-    backgroundImage: "url('alemed.jpg')",
-    backgroundAttachment: "fixed"
-  }
-}, /*#__PURE__*/React.createElement("div", {
-  className: "relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]"
-}, children));
+
+// Mova o LoginScreen para o escopo mais alto se ele não depender do estado do App
 function LoginScreen({
   onLogin,
   onRegister
@@ -53,7 +44,20 @@ function LoginScreen({
       setError(err.message);
     }
   };
-  return /*#__PURE__*/React.createElement(BackgroundWrapper, null, /*#__PURE__*/React.createElement("div", {
+
+  // O BackgroundWrapper para o LoginScreen pode ser definido aqui se for usado apenas aqui
+  const LoginBackground = ({
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4",
+    style: {
+      backgroundImage: "url('alemed.jpg')",
+      backgroundAttachment: "fixed"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]"
+  }, children));
+  return /*#__PURE__*/React.createElement(LoginBackground, null, /*#__PURE__*/React.createElement("div", {
     className: "w-full max-w-md p-8 space-y-6 bg-white/10 rounded-xl shadow-lg"
   }, /*#__PURE__*/React.createElement("h2", {
     className: "text-3xl font-bold text-center text-purple-300"
@@ -96,6 +100,19 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [loadingMinis, setLoadingMinis] = useState(true);
+
+  // Definição do BackgroundWrapper dentro do App para garantir o escopo
+  const BackgroundWrapper = ({
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    className: "min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4",
+    style: {
+      backgroundImage: "url('alemed.jpg')",
+      backgroundAttachment: "fixed"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]"
+  }, children));
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, user => {
       setCurrentUser(user);

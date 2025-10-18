@@ -5,15 +5,7 @@
   const db = window.firebaseDb;
   const auth = window.firebaseAuth;
 
-  const BackgroundWrapper = ({ children }) => (
-    <div className="min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4"
-      style={{ backgroundImage: "url('alemed.jpg')", backgroundAttachment: "fixed" }}>
-      <div className="relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]">
-        {children}
-      </div>
-    </div>
-  );
-
+  // Mova o LoginScreen para o escopo mais alto se ele não depender do estado do App
   function LoginScreen({ onLogin, onRegister }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -37,8 +29,18 @@
       }
     };
 
+    // O BackgroundWrapper para o LoginScreen pode ser definido aqui se for usado apenas aqui
+    const LoginBackground = ({ children }) => (
+      <div className="min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4"
+        style={{ backgroundImage: "url('alemed.jpg')", backgroundAttachment: "fixed" }}>
+        <div className="relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]">
+          {children}
+        </div>
+      </div>
+    );
+
     return (
-      <BackgroundWrapper>
+      <LoginBackground>
         <div className="w-full max-w-md p-8 space-y-6 bg-white/10 rounded-xl shadow-lg">
           <h2 className="text-3xl font-bold text-center text-purple-300">Login</h2>
           <form className="space-y-6">
@@ -67,10 +69,9 @@
             </div>
           </form>
         </div>
-      </BackgroundWrapper>
+      </LoginBackground>
     );
   }
-
 
 function App() {
   const [view, setView] = useState('home');
@@ -83,6 +84,16 @@ function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [loadingMinis, setLoadingMinis] = useState(true);
+
+  // Definição do BackgroundWrapper dentro do App para garantir o escopo
+  const BackgroundWrapper = ({ children }) => (
+    <div className="min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4"
+      style={{ backgroundImage: "url('alemed.jpg')", backgroundAttachment: "fixed" }}>
+      <div className="relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]">
+        {children}
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, user => {
