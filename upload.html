@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Controle - Coleção Maisto</title>
+  <link rel="stylesheet" href="output.css">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6;
+      color: #111827;
+    }
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    .form-group input, .form-group button {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+    }
+    .form-group button {
+      background-color: #10b981;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .item-list {
+      margin-top: 2rem;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .item img {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-right: 1rem;
+    }
+    .item-actions button {
+      margin-left: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-edit {
+      background-color: #3b82f6;
+      color: white;
+    }
+    .btn-delete {
+      background-color: #ef4444;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Painel de Controle</h1>
+
+    <!-- Formulário para Adicionar/Editar Itens -->
+    <div id="form-section">
+      <h2 id="form-title">Adicionar Nova Miniatura</h2>
+      <div class="form-group">
+        <label for="itemName">Nome da Miniatura</label>
+        <input type="text" id="itemName" placeholder="Ex: '57 Chevy Bel Air">
+      </div>
+      <div class="form-group">
+        <label for="itemImage">Imagem da Miniatura</label>
+        <input type="file" id="itemImage">
+      </div>
+      <div class="form-group">
+        <label for="itemBrand">Marca (pasta para salvar)</label>
+        <input type="text" id="itemBrand" placeholder="Ex: fresh-metal">
+      </div>
+      <button id="saveButton">Salvar</button>
+      <button id="cancelButton" style="display:none; background-color: #6b7280; margin-top: 0.5rem;">Cancelar Edição</button>
+    </div>
+
+    <!-- Lista de Itens -->
+    <div class="item-list" id="itemList">
+      <h2>Coleção Existente</h2>
+      <!-- Itens serão carregados aqui -->
+    </div>
+  </div>
+
+  <!-- Scripts do Firebase e do Painel -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js" type="module"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js" type="module"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js" type="module"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js" type="module"></script>
+  <script src="upload.js" type="module"></script>
+
+</body>
+</html>
