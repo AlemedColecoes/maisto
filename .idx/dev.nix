@@ -3,15 +3,16 @@
   packages = [ pkgs.nodejs_20 ];
   idx = {
     workspace = {
-      onCreate = {
+      onStart = {
         npm-install = "npm install";
+        build-css = "npm run build-css";
+        build-js = "npm run build-js";
       };
     };
     previews = {
       enable = true;
       previews = {
         web = {
-          # Execute the server directly, passing the IDX port as a command-line argument.
           command = ["node" "server.js" "$PORT"];
           manager = "web";
         };

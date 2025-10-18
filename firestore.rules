@@ -1,0 +1,19 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow anyone to read the list of miniatures
+    match /miniatures/{brand} {
+      allow read: if true;
+      allow write: if false; // Nobody should write to the master list from the client
+    }
+
+    // Allow users to read and write to their own document in the 'users' collection.
+    // This rule requires a user to be authenticated (including anonymous auth)
+    // and only allows them to access their own data.
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+  }
+}

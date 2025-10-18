@@ -1,168 +1,120 @@
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Coleção Maisto</title>
+  const { useState, useEffect, useCallback, useMemo } = React;
+  const { collection, getDocs, doc, setDoc, onSnapshot } = window.firebaseFirestore;
+  const { onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } = window.firebaseAuthFunctions;
+  const db = window.firebaseDb;
+  const auth = window.firebaseAuth;
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  const BackgroundWrapper = ({ children }) => (
+    <div className="min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4"
+      style={{ backgroundImage: "url('alemed.jpg')", backgroundAttachment: "fixed" }}>
+      <div className="relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]">
+        {children}
+      </div>
+    </div>
+  );
 
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-    body {
-      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
-      margin: 0;
-      background: #f8fafc;
-      color: #111827;
-    }
-    .card:hover {
-      transform: scale(1.03);
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-    }
-    .collected-card {
-      border: 4px solid #10b981;
-    }
-  </style>
+  function LoginScreen({ onLogin, onRegister }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
 
-<script type="module">
-  // Importa as funções necessárias do Firebase SDK
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"; // Adicionado signOut
-
-  // Sua configuração do Firebase (COLE AQUI A SUA CONFIGURAÇÃO REAL)
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "maisto-fresh-metal.firebaseapp.com",
-    projectId: "maisto-fresh-metal",
-    storageBucket: "maisto-fresh-metal.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID",
-    measurementId: "YOUR_MEASUREMENT_ID"
-  };
-
-  // Inicializa o Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app); // Inicializa o Firebase Authentication
-
-  // Torna os objetos e funções do Firebase acessíveis globalmente para o script React
-  window.firebaseApp = app;
-  window.firebaseDb = db;
-  window.firebaseAuth = auth;
-  window.firebaseFirestore = { collection, getDocs, doc, setDoc, onSnapshot };
-  window.firebaseAuthFunctions = { signInAnonymously, onAuthStateChanged, signOut }; // Exporta funções Auth
-</script>
-
-
-</head>
-
-<script type="text/babel">
-  // ... (todo o seu código React App aqui) ...
-
-  // MODIFICAÇÕES AQUI: Script para upload inicial de dados (EXECUTAR APENAS UMA VEZ!)
-  const uploadInitialMiniaturesToFirestore = async () => {
-    // Certifique-se que o initialMiniaturesByBrand do seu script React está visível aqui
-    // Se o initialMiniaturesByBrand não estiver no escopo, você precisará movê-lo para fora do App
-    // ou passá-lo para esta função. Por simplicidade, vou assumir que ele está acessível.
-
-    if (Object.keys(initialMiniaturesByBrand).length === 0) {
-        console.warn("initialMiniaturesByBrand está vazio. Não há dados para subir.");
-        return;
-    }
-
-    console.log("Iniciando upload de dados iniciais das miniaturas para o Firestore...");
-    for (const brandName in initialMiniaturesByBrand) {
-      const brandRef = doc(db, "miniatures", brandName);
+    const handleLogin = async (e) => {
+      e.preventDefault();
       try {
-        await setDoc(brandRef, { items: initialMiniaturesByBrand[brandName] });
-        console.log(`Dados da marca '${brandName}' enviados com sucesso.`);
-      } catch (error) {
-        console.error(`Erro ao enviar dados da marca '${brandName}':`, error);
+        await onLogin(email, password);
+      } catch (err) {
+        setError(err.message);
       }
-    }
-    console.log("Upload inicial de miniaturas concluído!");
-    // ATENÇÃO: COMENTE OU REMOVA ESTA CHAMADA APÓS A PRIMEIRA EXECUÇÃO BEM-SUCEDIDA!
-    // Você pode chamar isso manualmente no console do navegador, ou adicionando
-    // um botão de administrador temporário para dispará-lo.
-  };
+    };
 
-  // Exemplo de como chamar (DESCOMENTE PARA EXECUTAR UMA VEZ, DEPOIS COMENTE NOVAMENTE!)
-  // setTimeout(() => {
-  //   if (window.firebaseDb && Object.keys(miniaturesByBrand).length === 0) { // Verifica se ainda não carregou do Firestore
-  //     uploadInitialMiniaturesToFirestore();
-  //   }
-  // }, 5000); // Dá um tempo para o Firebase inicializar
-</script>
+    const handleRegister = async (e) => {
+      e.preventDefault();
+      try {
+        await onRegister(email, password);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
 
-<body>
+    return (
+      <BackgroundWrapper>
+        <div className="w-full max-w-md p-8 space-y-6 bg-white/10 rounded-xl shadow-lg">
+          <h2 className="text-3xl font-bold text-center text-purple-300">Login</h2>
+          <form className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-300">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 mt-1 text-white bg-white/20 rounded-md"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300">Senha</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-2 mt-1 text-white bg-white/20 rounded-md"
+              />
+            </div>
+            {error && <p className="text-red-400">{error}</p>}
+            <div className="flex flex-col gap-4">
+              <button onClick={handleLogin} className="w-full px-4 py-2 text-white bg-purple-600 rounded-md hover:bg-purple-700">Login</button>
+              <button onClick={handleRegister} className="w-full px-4 py-2 text-white bg-gray-600 rounded-md hover:bg-gray-700">Registrar</button>
+            </div>
+          </form>
+        </div>
+      </BackgroundWrapper>
+    );
+  }
 
-<div id="root"></div>
-
-const { useState, useEffect, useCallback, useMemo } = React;
-// MODIFICAÇÕES AQUI: Importa as funções do Firebase que tornamos globais
-const { collection, getDocs, doc, setDoc, onSnapshot } = window.firebaseFirestore;
-const { signInAnonymously, onAuthStateChanged, signOut } = window.firebaseAuthFunctions;
-const db = window.firebaseDb;
-const auth = window.firebaseAuth;
-
-// MODIFICAÇÕES AQUI: Remove os dados estáticos e o localStorage para coleções
-const initialMiniaturesByBrand = { /* Seus dados estáticos originais permanecem aqui para UPLOAD INICIAL */ }; // Mantenha para o upload inicial no Firestore
-const brandsList = Object.keys(initialMiniaturesByBrand).sort(); // Ainda pode usar para listar marcas iniciais
-// const LOCAL_STORAGE_KEY_COLLECTION = "maistoCollectionData"; // REMOVIDO
-// const LOCAL_STORAGE_KEY_LOCKED = "maistoLockedData"; // REMOVIDO
-// const getInitialCollection = () => JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_COLLECTION) || "{}"); // REMOVIDO
-// const getInitialLockedItems = () => JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY_LOCKED) || "{}"); // REMOVIDO
 
 function App() {
   const [view, setView] = useState('home');
   const [selectedBrand, setSelectedBrand] = useState(null);
-  const [miniaturesByBrand, setMiniaturesByBrand] = useState({}); // MODIFICAÇÃO: Agora vazio, será preenchido pelo Firestore
-  const [collectionData, setCollectionData] = useState({}); // MODIFICAÇÃO: Renomeado para evitar conflito com 'collection' do Firebase
+  const [miniaturesByBrand, setMiniaturesByBrand] = useState({});
+  const [collectionData, setCollectionData] = useState({});
   const [lockedItems, setLockedItems] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
-  const [currentUser, setCurrentUser] = useState(null); // MODIFICAÇÃO: Para armazenar o usuário logado
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  const [loadingMinis, setLoadingMinis] = useState(true);
 
-  // MODIFICAÇÕES AQUI: Efeito para lidar com a autenticação do usuário
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-      } else {
-        // Se não houver usuário logado, tenta logar anonimamente
-        signInAnonymously(auth)
-          .then((userCredential) => {
-            setCurrentUser(userCredential.user);
-          })
-          .catch((error) => {
-            console.error("Erro ao logar anonimamente:", error);
-          });
-      }
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      setCurrentUser(user);
+      setLoadingAuth(false);
     });
-    return () => unsubscribeAuth();
-  }, [auth]);
+    return () => unsubscribe();
+  }, []);
 
-  // MODIFICAÇÕES AQUI: Efeito para carregar as miniaturas e a coleção do usuário do Firestore
   useEffect(() => {
-    if (!currentUser) return; // Espera o usuário estar logado
-
-    // Carregar todas as miniaturas (a estrutura original de dados)
-    const fetchAllMiniaturesFromFirestore = async () => {
-      const querySnapshot = await getDocs(collection(db, "miniatures"));
-      const allMinis = {};
-      querySnapshot.forEach((docSnap) => {
-        allMinis[docSnap.id] = docSnap.data().items;
-      });
-      setMiniaturesByBrand(allMinis);
+    if (!currentUser) {
+        setLoadingMinis(false);
+        return;
     };
 
-    // Escutar a coleção e itens bloqueados do usuário em tempo real
+    setLoadingMinis(true);
+    const fetchAllMiniaturesFromFirestore = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "miniatures"));
+        const allMinis = {};
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          allMinis[docSnap.id] = Array.isArray(data.items) ? data.items : [];
+        });
+        setMiniaturesByBrand(allMinis);
+      } catch (error) {
+        console.error("Erro ao buscar miniaturas:", error);
+      } finally {
+        setLoadingMinis(false);
+      }
+    };
+
     const userDocRef = doc(db, "users", currentUser.uid);
     const unsubscribeUserCollection = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -170,7 +122,6 @@ function App() {
         setCollectionData(userData.collection || {});
         setLockedItems(userData.lockedItems || {});
       } else {
-        // Se o documento do usuário não existir, inicializa no Firestore
         setCollectionData({});
         setLockedItems({});
         setDoc(userDocRef, { collection: {}, lockedItems: {} }, { merge: true })
@@ -179,14 +130,9 @@ function App() {
     });
 
     fetchAllMiniaturesFromFirestore();
-    return () => unsubscribeUserCollection(); // Limpeza do listener do Firestore
-  }, [db, currentUser]); // Dependências para re-executar o efeito se db ou currentUser mudar
+    return () => unsubscribeUserCollection();
+  }, [db, currentUser]);
 
-  // REMOVIDO: useEffects de localStorage
-  // useEffect(() => localStorage.setItem(LOCAL_STORAGE_KEY_COLLECTION, JSON.stringify(collection)), [collection]);
-  // useEffect(() => localStorage.setItem(LOCAL_STORAGE_KEY_LOCKED, JSON.stringify(lockedItems)), [lockedItems]);
-
-  // Permanece igual, mas com a variável 'view' atualizada pelo navigate
   useEffect(() => {
     const handlePopState = () => {
       if (view === 'brand' || view === 'all') {
@@ -206,91 +152,87 @@ function App() {
 
   const handleGoBack = () => history.back();
 
-  // MODIFICAÇÕES AQUI: Função para alternar miniatura no Firestore
+  const totalMiniaturesCount = useMemo(() => Object.values(miniaturesByBrand).reduce((acc, current) => acc + (Array.isArray(current) ? current.length : 0), 0), [miniaturesByBrand]);
+  const totalCollectedCount = useMemo(() => Object.values(collectionData).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [collectionData]);
+  const totalLockedCount = useMemo(() => Object.values(lockedItems).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [lockedItems]);
+  const areAllLocked = totalMiniaturesCount > 0 && totalMiniaturesCount === totalLockedCount;
+
   const toggleMiniature = useCallback(async (brand, id) => {
-    if (!currentUser) return; // Garante que há um usuário logado
+    if (!currentUser) return;
 
     const userDocRef = doc(db, "users", currentUser.uid);
-    const currentCollection = { ...collectionData }; // Pega o estado atual da coleção
+    const currentCollection = { ...collectionData };
     const brandData = { ...(currentCollection[brand] || {}) };
     
     brandData[id] = !brandData[id];
-    if (!brandData[id]) delete brandData[id]; // Se desmarcado, remove a entrada
+    if (!brandData[id]) delete brandData[id];
     
     if (Object.keys(brandData).length === 0) {
-        delete currentCollection[brand]; // Se a marca não tem mais itens, remove a marca
+        delete currentCollection[brand];
     } else {
         currentCollection[brand] = brandData;
     }
 
-    // Atualiza o Firestore
     await setDoc(userDocRef, { collection: currentCollection }, { merge: true })
       .catch(error => console.error("Erro ao atualizar coleção no Firestore:", error));
     
-    // onSnapshot irá atualizar o state local, então não precisamos setar collectionData aqui.
-    // setCollectionData(currentCollection); // Não é mais necessário se onSnapshot está ativo
   }, [db, currentUser, collectionData]);
 
-  // MODIFICAÇÕES AQUI: Função para bloquear/desbloquear todas as miniaturas no Firestore
   const toggleLockAllBrands = useCallback(async () => {
-      if (!currentUser) return; // Garante que há um usuário logado
+      if (!currentUser) return;
 
       const userDocRef = doc(db, "users", currentUser.uid);
       let newLockedItems = {};
 
       if (areAllLocked) {
-          newLockedItems = {}; // Desbloquear tudo
+          newLockedItems = {};
       } else {
           for (const brand in miniaturesByBrand) {
               const brandLocks = {};
-              miniaturesByBrand[brand].forEach(mini => { brandLocks[mini.id] = true; });
+              if (Array.isArray(miniaturesByBrand[brand])) {
+                miniaturesByBrand[brand].forEach(mini => { brandLocks[mini.id] = true; });
+              }
               newLockedItems[brand] = brandLocks;
           }
       }
 
-      // Atualiza o Firestore
       await setDoc(userDocRef, { lockedItems: newLockedItems }, { merge: true })
           .catch(error => console.error("Erro ao atualizar bloqueios no Firestore:", error));
 
-      // onSnapshot irá atualizar o state local
-      // setLockedItems(newLockedItems); // Não é mais necessário se onSnapshot está ativo
   }, [miniaturesByBrand, areAllLocked, db, currentUser]);
 
 
-  const totalMiniaturesCount = useMemo(() => Object.values(miniaturesByBrand).reduce((acc, current) => acc + current.length, 0), [miniaturesByBrand]);
-  const totalCollectedCount = useMemo(() => Object.values(collectionData).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [collectionData]); // MODIFICAÇÃO: Usando collectionData
-  const totalLockedCount = useMemo(() => Object.values(lockedItems).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [lockedItems]);
-  const areAllLocked = totalMiniaturesCount > 0 && totalMiniaturesCount === totalLockedCount;
-
   const allMiniaturesList = useMemo(() => {
       return Object.entries(miniaturesByBrand).flatMap(([brand, minis]) =>
-          minis.map(mini => ({ ...mini, brand }))
+          (Array.isArray(minis) ? minis : []).map(mini => ({ ...mini, brand }))
       );
   }, [miniaturesByBrand]);
 
   const filteredMiniatures = useMemo(() => {
       return allMiniaturesList
           .filter(mini => {
-              const isCollected = collectionData[mini.brand]?.[mini.id]; // MODIFICAÇÃO: Usando collectionData
+              const isCollected = collectionData[mini.brand]?.[mini.id];
               return filter === 'all' || (filter === 'collected' && isCollected);
           })
           .filter(mini => mini.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [allMiniaturesList, collectionData, filter, searchTerm]); // MODIFICAÇÃO: Adicionado collectionData
+  }, [allMiniaturesList, collectionData, filter, searchTerm]);
 
-  // ... (Resto do seu código exportToPDF, BackgroundWrapper, e JSX dos componentes) ...
-
-  // Função de logout (Adicionar um botão no UI para isso)
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // O onAuthStateChanged vai lidar com o re-login anônimo
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
     }
   };
+  
+  const handleLogin = (email, password) => {
+    return signInWithEmailAndPassword(auth, email, password);
+  }
 
+  const handleRegister = (email, password) => {
+    return createUserWithEmailAndPassword(auth, email, password);
+  }
 
-  // CORREÇÃO: Função exportToPDF mantida com Y inicial maior e Y subsequente menor
   const exportToPDF = async () => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -324,7 +266,6 @@ function App() {
       });
     };
 
-    // Y inicial na PRIMEIRA PÁGINA: 30 para não sobrepor o título (Y=22).
     let y = 30; 
     const pageHeight = 280; 
     const columns = 5;  
@@ -333,17 +274,14 @@ function App() {
     const columnWidth = totalWidth / columns;
     const imageWidth = columnWidth - 2;  
 
-    // OTIMIZAÇÃO MÁXIMA PARA 1CM DE ESPAÇAMENTO:
     const imageHeight = 12; 
     const textSpace = 8; 
     const spacing = 10; 
     const itemHeight = imageHeight + textSpace + spacing;
     
     for (let i = 0; i < filteredMiniatures.length; i += columns) {
-      // Quebra de página: Verifica se a próxima linha ultrapassa o limite inferior.
       if (y + itemHeight > pageHeight - margin) {  
         doc.addPage();
-        // Y na SEGUNDA PÁGINA (e seguintes): Reseta para a margem superior (5) para maximizar.
         y = margin; 
       }
 
@@ -354,7 +292,6 @@ function App() {
         const mini = filteredMiniatures[index];
         const x = margin + j * columnWidth + 1;  
 
-        // 1. Imagem
         try {
           const imgData = await loadImageAsBase66(mini.image);
           if (imgData) {
@@ -374,33 +311,29 @@ function App() {
           doc.setTextColor(100);
         }
 
-        // 2. Texto
-        const status = collectionData[mini.brand]?.[mini.id] ? "Tenho: SIM" : "Tenho: NAO"; // MODIFICAÇÃO: Usando collectionData
+        const status = collectionData[mini.brand]?.[mini.id] ? "Tenho: SIM" : "Tenho: NAO";
         const line1 = mini.name;
         
-        // Quebra de linha
         const textLines = doc.splitTextToSize(line1, imageWidth);
         
         doc.text(textLines, x, y + imageHeight + 1);
         doc.text(status, x, y + imageHeight + 1 + (textLines.length * 3.2));  
       }
       
-      // Avança para a próxima linha vertical (adiciona o itemHeight total)
       y += itemHeight;
     }
 
     doc.save("colecao_maisto.pdf");
   };
-
   
-  const BackgroundWrapper = ({ children }) => (
-    <div className="min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4"
-      style={{ backgroundImage: "url('img/alemed.png')", backgroundAttachment: "fixed" }}>
-      <div className="relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]">
-        {children}
-      </div>
-    </div>
-  );
+  if (loadingAuth || loadingMinis) {
+    return <BackgroundWrapper><div>Carregando...</div></BackgroundWrapper>;
+  }
+
+  if (!currentUser) {
+    return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
+  }
+
 
   if (view === 'all') {
     return (
@@ -411,14 +344,10 @@ function App() {
             Voltar
           </button>
           <h1 className="text-3xl font-extrabold text-purple-400">Todas as Miniaturas</h1>
-          {/* MODIFICAÇÃO AQUI: Botão de Logout */}
-          {currentUser && !currentUser.isAnonymous && (
+          {currentUser && (
             <button onClick={handleLogout} className="px-4 py-2 text-sm bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 active:scale-95 transition">
               Logout
             </button>
-          )}
-          {!currentUser && ( // Ou um botão de login se você ativar outros provedores
-            <div/>
           )}
         </div>
 
@@ -433,7 +362,7 @@ function App() {
 
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full">
           {filteredMiniatures.map(mini => {
-            const isCollected = collectionData[mini.brand]?.[mini.id]; // MODIFICAÇÃO: Usando collectionData
+            const isCollected = collectionData[mini.brand]?.[mini.id];
             const isLocked = lockedItems[mini.brand]?.[mini.id];
             return (
               <div key={`${mini.brand}-${mini.id}`} className={"bg-white shadow-xl rounded-xl p-3 flex flex-col items-center justify-between " + (isCollected ? "collected-card" : "border border-gray-200")}>
@@ -455,8 +384,8 @@ function App() {
 
   if (view === 'brand') {
     const { brand } = selectedBrand;
-    const miniatures = miniaturesByBrand[brand] || [];
-    const currentCollection = collectionData[brand] || {}; // MODIFICAÇÃO: Usando collectionData
+    const miniatures = Array.isArray(miniaturesByBrand[brand]) ? miniaturesByBrand[brand] : [];
+    const currentCollection = collectionData[brand] || {};
     const currentLocked = lockedItems[brand] || {};
     return (
       <BackgroundWrapper>
@@ -496,16 +425,13 @@ function App() {
     <BackgroundWrapper>
       <div className="w-full relative text-center mb-4">
         <h1 className="text-5xl font-extrabold text-purple-300">Coleção Maisto</h1>
-        {currentUser && ( // Mostra o total da coleção e o botão de logout se houver usuário
+        {currentUser && (
           <div className="flex flex-col items-end absolute top-0 right-0">
             <h2 className="font-bold text-lg text-purple-300">Minha Coleção</h2>
             <p className="text-2xl font-mono">{totalCollectedCount} / {totalMiniaturesCount}</p>
-            {/* Botão de Logout na Home view */}
-            {!currentUser.isAnonymous && (
-              <button onClick={handleLogout} className="mt-2 px-3 py-1 text-xs bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 active:scale-95 transition">
-                Logout
-              </button>
-            )}
+            <button onClick={handleLogout} className="mt-2 px-3 py-1 text-xs bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 active:scale-95 transition">
+              Logout
+            </button>
           </div>
         )}
         
@@ -515,9 +441,10 @@ function App() {
       <div className="w-full h-0 mb-8 max-w-5xl"></div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-5xl">
-        {brandsList.map((brand) => {
-          const totalInBrand = miniaturesByBrand[brand]?.length || 0;
-          const collectedInBrand = Object.keys(collectionData[brand] || {}).length; // MODIFICAÇÃO: Usando collectionData
+        {Object.keys(miniaturesByBrand).sort().map((brand) => {
+          const brandItems = miniaturesByBrand[brand];
+          const totalInBrand = Array.isArray(brandItems) ? brandItems.length : 0;
+          const collectedInBrand = Object.keys(collectionData[brand] || {}).length;
           return (
             <div key={brand} onClick={() => navigate('brand', brand)} className="bg-white/10 shadow-lg rounded-xl p-3 flex flex-col items-center justify-center border border-purple-500/50 card cursor-pointer">
               <h3 className="text-xl font-bold text-purple-300 text-center">{brand}</h3>
@@ -539,7 +466,3 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-
-
-</body>
-</html>
