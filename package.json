@@ -1,0 +1,15 @@
+{
+  "name": "maisto-collection-manager",
+  "version": "1.0.0",
+  "description": "A web app to manage Maisto die-cast car collections.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "author": "",
+  "license": "ISC"
+}
