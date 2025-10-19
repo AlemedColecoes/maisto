@@ -5,7 +5,7 @@ import {
   getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot 
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { 
-  getStorage, ref, uploadBytes, getDownloadURL, deleteObject 
+  getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject 
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 import { 
   getAuth, onAuthStateChanged 
@@ -37,20 +37,20 @@ const saveButton = document.getElementById('saveButton');
 const cancelButton = document.getElementById('cancelButton');
 const formTitle = document.getElementById('form-title');
 const container = document.querySelector('.container');
+const progressContainer = document.getElementById('progress-container');
+const progressBar = document.getElementById('progress-bar');
 
 let currentEditingId = null;
 
 // --- Autenticação ---
 onAuthStateChanged(auth, user => {
   if (user) {
-    // Usuário está logado, mostra o painel
     container.style.display = 'block';
     loadItems();
   } else {
-    // Usuário não está logado, esconde o painel e pede login
     container.style.display = 'none';
     alert('Você precisa estar logado para acessar o painel de controle.');
-    window.location.href = 'index.html'; // Redireciona para a página principal
+    window.location.href = 'index.html';
   }
 });
 
@@ -60,7 +60,7 @@ onAuthStateChanged(auth, user => {
 const loadItems = () => {
   const itemsCollection = collection(db, 'cars');
   onSnapshot(itemsCollection, (snapshot) => {
-    itemList.innerHTML = '<h2>Coleção Existente</h2>'; // Limpa a lista
+    itemList.innerHTML = '<h2>Coleção Existente</h2>';
     snapshot.forEach(doc => {
       const item = doc.data();
       const itemId = doc.id;
@@ -77,8 +77,6 @@ const loadItems = () => {
       `;
       itemList.appendChild(itemElement);
     });
-
-    // Adiciona os event listeners para os botões de editar e excluir
     addEventListeners();
   });
 };
@@ -94,7 +92,7 @@ const addEventListeners = () => {
 };
 
 // Lida com o clique no botão Salvar (Adicionar ou Atualizar)
-saveButton.addEventListener('click', async () => {
+saveButton.addEventListener('click', () => {
   const name = itemNameInput.value.trim();
   const brand = itemBrandInput.value.trim() || 'geral';
   const file = itemImageInput.files[0];
@@ -104,7 +102,6 @@ saveButton.addEventListener('click', async () => {
     return;
   }
 
-  // Se não estiver editando, o arquivo de imagem é obrigatório
   if (!currentEditingId && !file) {
     alert('Por favor, selecione uma imagem.');
     return;
@@ -113,61 +110,73 @@ saveButton.addEventListener('click', async () => {
   saveButton.disabled = true;
   saveButton.textContent = 'Salvando...';
 
-  try {
-    let imageUrl = null;
-    let imagePath = null;
+  // Se um arquivo foi selecionado, faz o upload primeiro
+  if (file) {
+    const imagePath = `${brand}/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, imagePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-    // Se uma nova imagem foi selecionada, faz o upload
-    if (file) {
-      imagePath = `${brand}/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, imagePath);
-      await uploadBytes(storageRef, file);
-      imageUrl = await getDownloadURL(storageRef);
-    }
-    
-    let docToSave;
-    // Se estiver editando...
+    // Mostra a barra de progresso
+    progressContainer.style.display = 'block';
+
+    uploadTask.on('state_changed', 
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        progressBar.style.width = progress + '%';
+        progressBar.textContent = Math.round(progress) + '%';
+      },
+      (error) => {
+        console.error("Erro no upload: ", error);
+        alert('Ocorreu um erro ao enviar a imagem.');
+        resetSaveButton();
+      },
+      async () => {
+        // Upload concluído, pega a URL e salva o item
+        const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        saveItem(name, brand, imageUrl, imagePath);
+      }
+    );
+  } else {
+    // Se não há nova imagem, apenas salva os dados de texto
+    saveItem(name, brand, null, null);
+  }
+});
+
+// Função para salvar (ou atualizar) o item no Firestore
+const saveItem = async (name, brand, imageUrl, imagePath) => {
+  try {
     if (currentEditingId) {
-      docToSave = doc(db, 'cars', currentEditingId);
-      const updatedData = { name };
-      // Se uma nova imagem foi enviada, atualiza a URL e o caminho
+      // Atualizando item existente
+      const docRef = doc(db, 'cars', currentEditingId);
+      const updatedData = { name, brand };
       if (imageUrl) {
         updatedData.imageUrl = imageUrl;
         updatedData.imagePath = imagePath;
       }
-       await setDoc(docToSave, updatedData, { merge: true });
-    } else { // Se estiver adicionando...
-      docToSave = doc(collection(db, 'cars'));
-      await setDoc(docToSave, {
-        id: docToSave.id,
+      await setDoc(docRef, updatedData, { merge: true });
+    } else {
+      // Adicionando novo item
+      const docRef = doc(collection(db, 'cars'));
+      await setDoc(docRef, {
+        id: docRef.id,
         name: name,
+        brand: brand,
         imageUrl: imageUrl,
         imagePath: imagePath,
-        brand: brand
       });
     }
-
     resetForm();
-    
   } catch (error) {
-    console.error("Erro ao salvar: ", error);
-    alert('Ocorreu um erro ao salvar. Tente novamente.');
+    console.error("Erro ao salvar no Firestore: ", error);
+    alert('Ocorreu um erro ao salvar os dados.');
   } finally {
-    saveButton.disabled = false;
-    saveButton.textContent = 'Salvar';
+    resetSaveButton();
   }
-});
-
+}
 
 // Lida com o clique no botão Editar
 const handleEdit = async (e) => {
   currentEditingId = e.target.dataset.id;
-  const carDoc = doc(db, 'cars', currentEditingId);
-  const carSnap = await getDocs(carDoc);
-
-  // A forma de pegar o doc mudou um pouco, o ideal é usar `getDoc` (singular)
-  // Mas como já temos o `onSnapshot`, vamos pegar da lista para simplificar.
-  // Esta é uma maneira de contornar isso sem `getDoc`
   const itemsCollection = collection(db, 'cars');
   const snapshot = await getDocs(itemsCollection);
   const carData = snapshot.docs.find(d => d.id === currentEditingId).data();
@@ -178,8 +187,7 @@ const handleEdit = async (e) => {
   formTitle.textContent = 'Editar Miniatura';
   saveButton.textContent = 'Atualizar';
   cancelButton.style.display = 'inline-block';
-  
-  window.scrollTo(0, 0); // Rola a página para o topo
+  window.scrollTo(0, 0);
 };
 
 // Lida com o clique no botão Excluir
@@ -194,13 +202,10 @@ const handleDelete = async (e) => {
     const snapshot = await getDocs(itemsCollection);
     const carData = snapshot.docs.find(d => d.id === id).data();
 
-    // 1. Excluir a imagem do Storage
     if (carData.imagePath) {
       const imageRef = ref(storage, carData.imagePath);
       await deleteObject(imageRef);
     }
-
-    // 2. Excluir o documento do Firestore
     await deleteDoc(doc(db, 'cars', id));
 
   } catch (error) {
@@ -208,6 +213,15 @@ const handleDelete = async (e) => {
     alert('Erro ao excluir. Tente novamente.');
   }
 };
+
+// Reseta o estado do botão de salvar
+function resetSaveButton() {
+  saveButton.disabled = false;
+  saveButton.textContent = 'Salvar';
+  progressContainer.style.display = 'none';
+  progressBar.style.width = '0%';
+  progressBar.textContent = '';
+}
 
 // Cancela a edição e reseta o formulário
 cancelButton.addEventListener('click', resetForm);
@@ -221,4 +235,5 @@ function resetForm() {
   formTitle.textContent = 'Adicionar Nova Miniatura';
   saveButton.textContent = 'Salvar';
   cancelButton.style.display = 'none';
+  resetSaveButton();
 }
