@@ -1,528 +1,122 @@
-const {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo
-} = React;
-const {
-  collection,
-  getDocs,
-  doc,
-  setDoc,
-  onSnapshot
-} = window.firebaseFirestore;
-const {
-  onAuthStateChanged,
-  signOut,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword
-} = window.firebaseAuthFunctions;
-const db = window.firebaseDb;
-const auth = window.firebaseAuth;
+// Importe as funções necessárias do SDK do Firebase
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { 
+    getAuth, 
+    GithubAuthProvider, 
+    signInWithPopup, 
+    signInWithEmailAndPassword, 
+    sendPasswordResetEmail,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// Mova o LoginScreen para o escopo mais alto se ele não depender do estado do App
-function LoginScreen({
-  onLogin,
-  onRegister
-}) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const handleLogin = async e => {
-    e.preventDefault();
-    try {
-      await onLogin(email, password);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-  const handleRegister = async e => {
-    e.preventDefault();
-    try {
-      await onRegister(email, password);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+// Configurações do Firebase (usando as credenciais corretas do projeto)
+const firebaseConfig = {
+    apiKey: "AIzaSyAy4aWx-DO6pVeiCq37t-PcwMvr7lhRIzw",
+    authDomain: "maisto-fresh-metal.firebaseapp.com",
+    projectId: "maisto-fresh-metal",
+    storageBucket: "maisto-fresh-metal.firebasestorage.app",
+    messagingSenderId: "237854342909",
+    appId: "1:237854342909:web:0bef57068b33194ab00894",
+    measurementId: "G-35FH494LSF"
+};
 
-  // O BackgroundWrapper para o LoginScreen pode ser definido aqui se for usado apenas aqui
-  const LoginBackground = ({
-    children
-  }) => /*#__PURE__*/React.createElement("div", {
-    className: "min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4",
-    style: {
-      backgroundImage: "url('alemed.jpg')",
-      backgroundAttachment: "fixed"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]"
-  }, children));
-  return /*#__PURE__*/React.createElement(LoginBackground, null, /*#__PURE__*/React.createElement("div", {
-    className: "w-full max-w-md p-8 space-y-6 bg-white/10 rounded-xl shadow-lg"
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: "text-3xl font-bold text-center text-purple-300"
-  }, "Login"), /*#__PURE__*/React.createElement("form", {
-    className: "space-y-6"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: "block text-sm font-medium text-gray-300"
-  }, "Email"), /*#__PURE__*/React.createElement("input", {
-    type: "email",
-    value: email,
-    onChange: e => setEmail(e.target.value),
-    className: "w-full p-2 mt-1 text-white bg-white/20 rounded-md"
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: "block text-sm font-medium text-gray-300"
-  }, "Senha"), /*#__PURE__*/React.createElement("input", {
-    type: "password",
-    value: password,
-    onChange: e => setPassword(e.target.value),
-    className: "w-full p-2 mt-1 text-white bg-white/20 rounded-md"
-  })), error && /*#__PURE__*/React.createElement("p", {
-    className: "text-red-400"
-  }, error), /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col gap-4"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: handleLogin,
-    className: "w-full px-4 py-2 text-white bg-purple-600 rounded-md hover:bg-purple-700"
-  }, "Login"), /*#__PURE__*/React.createElement("button", {
-    onClick: handleRegister,
-    className: "w-full px-4 py-2 text-white bg-gray-600 rounded-md hover:bg-gray-700"
-  }, "Registrar")))));
-}
-function App() {
-  const [view, setView] = useState('home');
-  const [selectedBrand, setSelectedBrand] = useState(null);
-  const [miniaturesByBrand, setMiniaturesByBrand] = useState({});
-  const [collectionData, setCollectionData] = useState({});
-  const [lockedItems, setLockedItems] = useState({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState('all');
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loadingAuth, setLoadingAuth] = useState(true);
-  const [loadingMinis, setLoadingMinis] = useState(true);
+// Inicializa o Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const githubProvider = new GithubAuthProvider(); // Provedor do GitHub
 
-  // Definição do BackgroundWrapper dentro do App para garantir o escopo
-  const BackgroundWrapper = ({
-    children
-  }) => /*#__PURE__*/React.createElement("div", {
-    className: "min-h-screen bg-cover bg-center flex flex-col items-center justify-start text-white p-4",
-    style: {
-      backgroundImage: "url('alemed.jpg')",
-      backgroundAttachment: "fixed"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "relative bg-black/70 w-full h-full flex flex-col items-center justify-start p-6 rounded-xl max-w-6xl mx-auto shadow-2xl min-h-[90vh] md:min-h-[95vh]"
-  }, children));
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
-      setCurrentUser(user);
-      setLoadingAuth(false);
-    });
-    return () => unsubscribe();
-  }, []);
-  useEffect(() => {
-    if (!currentUser) {
-      setLoadingMinis(false);
-      return;
-    }
-    ;
-    setLoadingMinis(true);
-    const fetchAllMiniaturesFromFirestore = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "miniatures"));
-        const allMinis = {};
-        querySnapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          allMinis[docSnap.id] = Array.isArray(data.items) ? data.items : [];
+// Seleciona os elementos do DOM
+const loginForm = document.getElementById('login-form');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+const githubBtn = document.getElementById('github-login-btn');
+const forgotPasswordLink = document.getElementById('forgot-password');
+const errorMessage = document.getElementById('error-message');
+
+// --- Função de Login com Email e Senha ---
+loginForm.addEventListener('submit', (e) => {
+    e.preventDefault(); 
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    
+    errorMessage.textContent = ''; // Limpa erros antigos
+
+    signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+            console.log('Logado com Email/Senha:', userCredential.user);
+            window.location.href = '/upload.html'; // Redireciona para a página de upload
+        })
+        .catch((error) => {
+            console.error('Erro no login:', error.code);
+            errorMessage.textContent = getFriendlyErrorMessage(error.code);
         });
-        setMiniaturesByBrand(allMinis);
-      } catch (error) {
-        console.error("Erro ao buscar miniaturas:", error);
-      } finally {
-        setLoadingMinis(false);
-      }
-    };
-    const userDocRef = doc(db, "users", currentUser.uid);
-    const unsubscribeUserCollection = onSnapshot(userDocRef, docSnap => {
-      if (docSnap.exists()) {
-        const userData = docSnap.data();
-        setCollectionData(userData.collection || {});
-        setLockedItems(userData.lockedItems || {});
-      } else {
-        setCollectionData({});
-        setLockedItems({});
-        setDoc(userDocRef, {
-          collection: {},
-          lockedItems: {}
-        }, {
-          merge: true
-        }).catch(error => console.error("Erro ao criar documento de usuário:", error));
-      }
-    });
-    fetchAllMiniaturesFromFirestore();
-    return () => unsubscribeUserCollection();
-  }, [db, currentUser]);
-  useEffect(() => {
-    const handlePopState = () => {
-      if (view === 'brand' || view === 'all') {
-        setView('home');
-        setSelectedBrand(null);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [view]);
-  const navigate = (newView, brand = null) => {
-    history.pushState({
-      view: newView,
-      brand
-    }, '', `#${newView}${brand ? `/${brand}` : ''}`);
-    setView(newView);
-    setSelectedBrand(brand ? {
-      brand
-    } : null);
-  };
-  const handleGoBack = () => history.back();
-  const totalMiniaturesCount = useMemo(() => Object.values(miniaturesByBrand).reduce((acc, current) => acc + (Array.isArray(current) ? current.length : 0), 0), [miniaturesByBrand]);
-  const totalCollectedCount = useMemo(() => Object.values(collectionData).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [collectionData]);
-  const totalLockedCount = useMemo(() => Object.values(lockedItems).reduce((acc, brand) => acc + Object.keys(brand).length, 0), [lockedItems]);
-  const areAllLocked = totalMiniaturesCount > 0 && totalMiniaturesCount === totalLockedCount;
-  const toggleMiniature = useCallback(async (brand, id) => {
-    if (!currentUser) return;
-    const userDocRef = doc(db, "users", currentUser.uid);
-    const currentCollection = {
-      ...collectionData
-    };
-    const brandData = {
-      ...(currentCollection[brand] || {})
-    };
-    brandData[id] = !brandData[id];
-    if (!brandData[id]) delete brandData[id];
-    if (Object.keys(brandData).length === 0) {
-      delete currentCollection[brand];
-    } else {
-      currentCollection[brand] = brandData;
-    }
-    await setDoc(userDocRef, {
-      collection: currentCollection
-    }, {
-      merge: true
-    }).catch(error => console.error("Erro ao atualizar coleção no Firestore:", error));
-  }, [db, currentUser, collectionData]);
-  const toggleLockAllBrands = useCallback(async () => {
-    if (!currentUser) return;
-    const userDocRef = doc(db, "users", currentUser.uid);
-    let newLockedItems = {};
-    if (areAllLocked) {
-      newLockedItems = {};
-    } else {
-      for (const brand in miniaturesByBrand) {
-        const brandLocks = {};
-        if (Array.isArray(miniaturesByBrand[brand])) {
-          miniaturesByBrand[brand].forEach(mini => {
-            brandLocks[mini.id] = true;
-          });
-        }
-        newLockedItems[brand] = brandLocks;
-      }
-    }
-    await setDoc(userDocRef, {
-      lockedItems: newLockedItems
-    }, {
-      merge: true
-    }).catch(error => console.error("Erro ao atualizar bloqueios no Firestore:", error));
-  }, [miniaturesByBrand, areAllLocked, db, currentUser]);
-  const allMiniaturesList = useMemo(() => {
-    return Object.entries(miniaturesByBrand).flatMap(([brand, minis]) => (Array.isArray(minis) ? minis : []).map(mini => ({
-      ...mini,
-      brand
-    })));
-  }, [miniaturesByBrand]);
-  const filteredMiniatures = useMemo(() => {
-    return allMiniaturesList.filter(mini => {
-      const isCollected = collectionData[mini.brand]?.[mini.id];
-      return filter === 'all' || filter === 'collected' && isCollected;
-    }).filter(mini => mini.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [allMiniaturesList, collectionData, filter, searchTerm]);
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error);
-    }
-  };
-  const handleLogin = (email, password) => {
-    return signInWithEmailAndPassword(auth, email, password);
-  };
-  const handleRegister = (email, password) => {
-    return createUserWithEmailAndPassword(auth, email, password);
-  };
-  const exportToPDF = async () => {
-    const {
-      jsPDF
-    } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const titleHeight = 22;
-    doc.text("Relatório da Coleção Maisto", pageWidth / 2, titleHeight, {
-      align: 'center'
-    });
-    doc.setFontSize(7);
-    doc.setTextColor(100);
-    const loadImageAsBase66 = url => {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL("image/jpeg"));
-        };
-        img.onerror = e => {
-          console.error("Falha ao carregar imagem:", url, e);
-          resolve(null);
-        };
-        img.src = url;
-      });
-    };
-    let y = 30;
-    const pageHeight = 280;
-    const columns = 5;
-    const margin = 5;
-    const totalWidth = doc.internal.pageSize.getWidth() - 2 * margin;
-    const columnWidth = totalWidth / columns;
-    const imageWidth = columnWidth - 2;
-    const imageHeight = 12;
-    const textSpace = 8;
-    const spacing = 10;
-    const itemHeight = imageHeight + textSpace + spacing;
-    for (let i = 0; i < filteredMiniatures.length; i += columns) {
-      if (y + itemHeight > pageHeight - margin) {
-        doc.addPage();
-        y = margin;
-      }
-      for (let j = 0; j < columns; j++) {
-        const index = i + j;
-        if (index >= filteredMiniatures.length) break;
-        const mini = filteredMiniatures[index];
-        const x = margin + j * columnWidth + 1;
-        try {
-          const imgData = await loadImageAsBase66(mini.image);
-          if (imgData) {
-            doc.addImage(imgData, 'JPEG', x, y, imageWidth, imageHeight);
-          } else {
-            doc.setFillColor(230, 230, 230);
-            doc.rect(x, y, imageWidth, imageHeight, 'F');
-            doc.setTextColor(150);
-            doc.text("No Img", x + imageWidth / 2, y + imageHeight / 2, {
-              align: 'center',
-              baseline: 'middle'
-            });
-            doc.setTextColor(100);
-          }
-        } catch (error) {
-          doc.setFillColor(230, 230, 230);
-          doc.rect(x, y, imageWidth, imageHeight, 'F');
-          doc.setTextColor(150);
-          doc.text("Erro IMG", x + imageWidth / 2, y + imageHeight / 2, {
-            align: 'center',
-            baseline: 'middle'
-          });
-          doc.setTextColor(100);
-        }
-        const status = collectionData[mini.brand]?.[mini.id] ? "Tenho: SIM" : "Tenho: NAO";
-        const line1 = mini.name;
-        const textLines = doc.splitTextToSize(line1, imageWidth);
-        doc.text(textLines, x, y + imageHeight + 1);
-        doc.text(status, x, y + imageHeight + 1 + textLines.length * 3.2);
-      }
-      y += itemHeight;
-    }
-    doc.save("colecao_maisto.pdf");
-  };
-  if (loadingAuth || loadingMinis) {
-    return /*#__PURE__*/React.createElement(BackgroundWrapper, null, /*#__PURE__*/React.createElement("div", null, "Carregando..."));
-  }
-  if (!currentUser) {
-    return /*#__PURE__*/React.createElement(LoginScreen, {
-      onLogin: handleLogin,
-      onRegister: handleRegister
-    });
-  }
-  if (view === 'all') {
-    return /*#__PURE__*/React.createElement(BackgroundWrapper, null, /*#__PURE__*/React.createElement("div", {
-      className: "w-full flex justify-between items-center mb-4"
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: handleGoBack,
-      className: "flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:bg-purple-700 active:scale-95 transition"
-    }, /*#__PURE__*/React.createElement("svg", {
-      xmlns: "http://www.w3.org/2000/svg",
-      className: "h-4 w-4",
-      fill: "none",
-      viewBox: "0 0 24 24",
-      stroke: "currentColor",
-      strokeWidth: 2
-    }, /*#__PURE__*/React.createElement("path", {
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      d: "M10 19l-7-7m0 0l7-7m-7 7h18"
-    })), "Voltar"), /*#__PURE__*/React.createElement("h1", {
-      className: "text-3xl font-extrabold text-purple-400"
-    }, "Todas as Miniaturas"), currentUser && /*#__PURE__*/React.createElement("button", {
-      onClick: handleLogout,
-      className: "px-4 py-2 text-sm bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 active:scale-95 transition"
-    }, "Logout")), /*#__PURE__*/React.createElement("div", {
-      className: "w-full flex flex-col md:flex-row gap-4 mb-6"
-    }, /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      placeholder: "Buscar por nome...",
-      value: searchTerm,
-      onChange: e => setSearchTerm(e.target.value),
-      className: "flex-grow p-2 rounded-lg bg-white/20 border border-purple-400/50 focus:ring-purple-500 focus:border-purple-500"
-    }), /*#__PURE__*/React.createElement("div", {
-      className: "flex gap-2"
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => setFilter('all'),
-      className: `px-4 py-2 rounded-lg font-semibold ${filter === 'all' ? 'bg-purple-600' : 'bg-white/10'}`
-    }, "Todas"), /*#__PURE__*/React.createElement("button", {
-      onClick: () => setFilter('collected'),
-      className: `px-4 py-2 rounded-lg font-semibold ${filter === 'collected' ? 'bg-purple-600' : 'bg-white/10'}`
-    }, "Minha Cole\xE7\xE3o")), /*#__PURE__*/React.createElement("button", {
-      onClick: exportToPDF,
-      className: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold"
-    }, "Exportar para PDF")), /*#__PURE__*/React.createElement("div", {
-      className: "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full"
-    }, filteredMiniatures.map(mini => {
-      const isCollected = collectionData[mini.brand]?.[mini.id];
-      const isLocked = lockedItems[mini.brand]?.[mini.id];
-      return /*#__PURE__*/React.createElement("div", {
-        key: `${mini.brand}-${mini.id}`,
-        className: "bg-white shadow-xl rounded-xl p-3 flex flex-col items-center justify-between " + (isCollected ? "collected-card" : "border border-gray-200")
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "w-full h-[120px] bg-gray-200 rounded-lg mb-2 flex items-center justify-center overflow-hidden"
-      }, /*#__PURE__*/React.createElement("img", {
-        src: mini.image,
-        alt: mini.name,
-        className: "object-contain w-full h-full rounded-lg",
-        onError: e => e.target.src = 'https://placehold.co/225x120/f3f4f6/333?text=ERRO+IMG'
-      })), /*#__PURE__*/React.createElement("p", {
-        className: "text-gray-800 text-xs sm:text-sm font-semibold text-center mt-1 mb-2"
-      }, mini.name), /*#__PURE__*/React.createElement("p", {
-        className: "text-gray-500 text-xs font-medium mb-2"
-      }, mini.brand), /*#__PURE__*/React.createElement("label", {
-        onClick: !isLocked ? () => toggleMiniature(mini.brand, mini.id) : undefined,
-        className: "flex w-full justify-center gap-2 text-gray-800 text-sm font-medium p-2 rounded-lg " + (isLocked ? "bg-gray-200 cursor-not-allowed opacity-70" : "bg-gray-100 hover:bg-gray-200 cursor-pointer")
-      }, /*#__PURE__*/React.createElement("input", {
-        type: "checkbox",
-        checked: !!isCollected,
-        disabled: isLocked,
-        readOnly: true,
-        className: "w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-      }), " Tenho"));
-    })));
-  }
-  if (view === 'brand') {
-    const {
-      brand
-    } = selectedBrand;
-    const miniatures = Array.isArray(miniaturesByBrand[brand]) ? miniaturesByBrand[brand] : [];
-    const currentCollection = collectionData[brand] || {};
-    const currentLocked = lockedItems[brand] || {};
-    return /*#__PURE__*/React.createElement(BackgroundWrapper, null, /*#__PURE__*/React.createElement("div", {
-      className: "w-full flex justify-between items-center mb-6"
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: handleGoBack,
-      className: "flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:bg-purple-700 active:scale-95 transition"
-    }, /*#__PURE__*/React.createElement("svg", {
-      xmlns: "http://www.w3.org/2000/svg",
-      className: "h-4 w-4",
-      fill: "none",
-      viewBox: "0 0 24 24",
-      stroke: "currentColor",
-      strokeWidth: 2
-    }, /*#__PURE__*/React.createElement("path", {
-      strokeLinecap: "round",
-      strokeLinejoin: "round",
-      d: "M10 19l-7-7m0 0l7-7m-7 7h18"
-    })), "Voltar"), /*#__PURE__*/React.createElement("button", {
-      onClick: toggleLockAllBrands,
-      className: (areAllLocked ? "bg-red-600 hover:bg-red-700" : "bg-gray-200 text-gray-800 hover:bg-gray-300") + " px-4 py-2 text-sm font-semibold rounded-lg shadow-lg transition"
-    }, areAllLocked ? 'Desbloquear Tudo' : 'Bloquear Tudo')), /*#__PURE__*/React.createElement("h2", {
-      className: "text-4xl font-extrabold text-purple-400 mb-6 text-center"
-    }, "Cole\xE7\xE3o Maisto - ", brand), /*#__PURE__*/React.createElement("div", {
-      className: "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 w-full"
-    }, miniatures.map(mini => {
-      const isCollected = currentCollection[mini.id];
-      const isLocked = currentLocked[mini.id];
-      return /*#__PURE__*/React.createElement("div", {
-        key: mini.id,
-        className: "bg-white shadow-xl rounded-xl p-3 flex flex-col items-center justify-between " + (isCollected ? "collected-card" : "border border-gray-200")
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "w-full h-[120px] bg-gray-200 rounded-lg mb-2 flex items-center justify-center overflow-hidden"
-      }, /*#__PURE__*/React.createElement("img", {
-        src: mini.image,
-        alt: mini.name,
-        className: "object-contain w-full h-full rounded-lg",
-        onError: e => e.target.src = 'https://placehold.co/225x120/f3f4f6/333?text=ERRO+IMG'
-      })), /*#__PURE__*/React.createElement("p", {
-        className: "text-gray-800 text-xs sm:text-sm font-semibold text-center mt-1 mb-2"
-      }, mini.name), /*#__PURE__*/React.createElement("label", {
-        onClick: !isLocked ? () => toggleMiniature(brand, mini.id) : undefined,
-        className: "flex w-full justify-center gap-2 text-gray-800 text-sm font-medium p-2 rounded-lg " + (isLocked ? "bg-gray-200 cursor-not-allowed opacity-70" : "bg-gray-100 hover:bg-gray-200 cursor-pointer")
-      }, /*#__PURE__*/React.createElement("input", {
-        type: "checkbox",
-        checked: !!isCollected,
-        disabled: isLocked,
-        readOnly: true,
-        className: "w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-      }), " Tenho"));
-    })));
-  }
+});
 
-  // Home view
-  return /*#__PURE__*/React.createElement(BackgroundWrapper, null, /*#__PURE__*/React.createElement("div", {
-    className: "w-full relative text-center mb-4"
-  }, /*#__PURE__*/React.createElement("h1", {
-    className: "text-5xl font-extrabold text-purple-300"
-  }, "Cole\xE7\xE3o Maisto"), currentUser && /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col items-end absolute top-0 right-0"
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: "font-bold text-lg text-purple-300"
-  }, "Minha Cole\xE7\xE3o"), /*#__PURE__*/React.createElement("p", {
-    className: "text-2xl font-mono"
-  }, totalCollectedCount, " / ", totalMiniaturesCount), /*#__PURE__*/React.createElement("button", {
-    onClick: handleLogout,
-    className: "mt-2 px-3 py-1 text-xs bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:bg-red-700 active:scale-95 transition"
-  }, "Logout"))), /*#__PURE__*/React.createElement("p", {
-    className: "text-2xl text-center text-gray-400"
-  }, "Selecione a marca para visualizar sua cole\xE7\xE3o."), /*#__PURE__*/React.createElement("div", {
-    className: "w-full h-0 mb-8 max-w-5xl"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full max-w-5xl"
-  }, Object.keys(miniaturesByBrand).sort().map(brand => {
-    const brandItems = miniaturesByBrand[brand];
-    const totalInBrand = Array.isArray(brandItems) ? brandItems.length : 0;
-    const collectedInBrand = Object.keys(collectionData[brand] || {}).length;
-    return /*#__PURE__*/React.createElement("div", {
-      key: brand,
-      onClick: () => navigate('brand', brand),
-      className: "bg-white/10 shadow-lg rounded-xl p-3 flex flex-col items-center justify-center border border-purple-500/50 card cursor-pointer"
-    }, /*#__PURE__*/React.createElement("h3", {
-      className: "text-xl font-bold text-purple-300 text-center"
-    }, brand), /*#__PURE__*/React.createElement("p", {
-      className: "text-sm font-medium text-gray-300 mt-2"
-    }, collectedInBrand, " / ", totalInBrand));
-  })), /*#__PURE__*/React.createElement("div", {
-    className: "w-full h-0 mb-8 max-w-5xl"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "absolute bottom-6 right-6"
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => navigate('all'),
-    className: "px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold shadow-lg"
-  }, "Ver Todas as Miniaturas")));
+// --- Função de Login com GitHub ---
+githubBtn.addEventListener('click', () => {
+    errorMessage.textContent = '';
+
+    signInWithPopup(auth, githubProvider)
+        .then((result) => {
+            console.log('Logado com GitHub:', result.user);
+            window.location.href = '/upload.html'; // Redireciona para a página de upload
+        })
+        .catch((error) => {
+            console.error('Erro no login com GitHub:', error);
+            errorMessage.textContent = getFriendlyErrorMessage(error.code);
+        });
+});
+
+// --- Função de Recuperar Senha ---
+forgotPasswordLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    const email = emailInput.value;
+    
+    if (!email) {
+        errorMessage.textContent = 'Por favor, digite seu e-mail para recuperar a senha.';
+        return;
+    }
+
+    sendPasswordResetEmail(auth, email)
+        .then(() => {
+            alert('E-mail de recuperação de senha enviado! Verifique sua caixa de entrada.');
+            errorMessage.textContent = '';
+        })
+        .catch((error) => {
+            console.error('Erro ao enviar e-mail de recuperação:', error);
+            errorMessage.textContent = getFriendlyErrorMessage(error.code);
+        });
+});
+
+// --- Observador de estado de autenticação ---
+onAuthStateChanged(auth, (user) => {
+    // Se o usuário já estiver logado, redireciona para a página de upload
+    if (user) {
+        console.log('Usuário já está logado, redirecionando...');
+        // Verifica se a página atual não é a de upload para evitar loops
+        if (window.location.pathname !== '/upload.html') {
+            window.location.href = '/upload.html';
+        }
+    } else {
+        console.log('Nenhum usuário logado.');
+    }
+});
+
+// --- Função auxiliar para traduzir erros ---
+function getFriendlyErrorMessage(errorCode) {
+    switch (errorCode) {
+        case 'auth/user-not-found':
+        case 'auth/invalid-credential':
+            return 'E-mail ou senha incorretos.';
+        case 'auth/wrong-password':
+            return 'Senha incorreta. Tente novamente.';
+        case 'auth/invalid-email':
+            return 'O formato do e-mail é inválido.';
+        case 'auth/too-many-requests':
+            return 'Muitas tentativas de login. Tente novamente mais tarde.';
+        case 'auth/account-exists-with-different-credential':
+            return 'Já existe uma conta com este e-mail, mas com um método de login diferente.';
+        default:
+            return 'Ocorreu um erro. Tente novamente.';
+    }
 }
-ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(App, null));

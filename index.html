@@ -1,68 +1,57 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Coleção Maisto</title>
-
-  <link rel="stylesheet" href="output.css">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-    body {
-      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
-      margin: 0;
-      background: #f8fafc;
-      color: #111827;
-    }
-    .card:hover {
-      transform: scale(1.03);
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-    }
-    .collected-card {
-      border: 4px solid #10b981;
-    }
-  </style>
-
-<script type="module">
-  // Importa as funções necessárias do Firebase SDK
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-  // Sua configuração do Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyAy4aWx-DO6pVeiCq37t-PcwMvr7lhRIzw",
-    authDomain: "maisto-fresh-metal.firebaseapp.com",
-    projectId: "maisto-fresh-metal",
-    storageBucket: "maisto-fresh-metal.firebasestorage.app",
-    messagingSenderId: "237854342909",
-    appId: "1:237854342909:web:0bef57068b33194ab00894",
-    measurementId: "G-35FH494LSF"
-  };
-
-  // Inicializa o Firebase
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-
-  // Torna os objetos e funções do Firebase acessíveis globalmente
-  window.firebaseApp = app;
-  window.firebaseDb = db;
-  window.firebaseAuth = auth;
-  window.firebaseFirestore = { collection, getDocs, doc, setDoc, onSnapshot };
-  window.firebaseAuthFunctions = { onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword };
-</script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alemed Coleções - Login</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<div id="root"></div>
+    <div class="login-container">
+        
+        <div class="login-form-container">
+            <h1>Faça seu login<span>.</span></h1>
+            
+            <p id="error-message" class="error"></p>
 
-<script src="app.js" defer></script>
+            <form id="login-form">
+                <label for="email">Email</label>
+                <div class="input-wrapper">
+                    <input type="email" id="email" placeholder="seuemail@exemplo.com" required>
+                </div>
+                
+                <label for="password">Senha</label>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder="Sua senha" required>
+                </div>
+                
+                <a href="#" id="forgot-password" class="forgot-link">Esqueci minha senha</a>
+                
+                <button type="submit" class="btn btn-primary">Entrar</button>
+            </form>
+            
+            <div class="divider">ou</div>
+            
+            <button type="button" id="github-login-btn" class="btn btn-github">
+                <svg height="20" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="20" fill="white">
+                    <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.19.01-.82.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21-.15.46-.55.38A8.013 8.013 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+                </svg>
+                Entrar com GitHub
+            </button>
+            
+            <a href="#" class="signup-link">Ainda não tenho uma conta</a>
+        </div>
+        
+        <div class="logo-container">
+            <div class="logo-text">
+                Alemed<br>Coleções
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
 
 </body>
 </html>
